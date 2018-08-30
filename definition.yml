@@ -1,6 +1,6 @@
 id: slingshot
-docker_repository: dynverse/dynmethods:slingshot
-container_url: https://github.com/dynverse/dynmethods/tree/master/containers/slingshot
+docker_repository: dynverse/ti_slingshot
+container_url: https://github.com/dynverse/ti_slingshot
 name: Slingshot
 type: algorithm
 platform: R
