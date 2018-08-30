@@ -21,7 +21,6 @@ code_url: https://github.com/kstreet13/slingshot
 apt_dependencies:
 - libcgal-dev
 - libglu1-mesa-dev
-- libglu1-mesa-dev
 parameters:
   shrink:
     type: numeric
