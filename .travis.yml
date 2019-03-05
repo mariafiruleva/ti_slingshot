@@ -12,8 +12,6 @@ services:
 before_install:
 - openssl aes-256-cbc -K $encrypted_11530284ca42_key -iv $encrypted_11530284ca42_iv
   -in credentials.enc -out credentials -d
-- openssl aes-256-cbc -K $encrypted_11530284ca42_key -iv $encrypted_11530284ca42_iv
-  -in credentials.enc -out ~\/credentials -d
 - source credentials
 - source <(curl -sSL https://raw.githubusercontent.com/dynverse/travis_scripts/master/helper.sh)
 install:
