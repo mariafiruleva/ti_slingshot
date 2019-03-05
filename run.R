@@ -1,37 +1,41 @@
-library(jsonlite)
-library(readr)
-library(dplyr)
-library(purrr)
+#!/usr/local/bin/Rscript
 
-library(princurve)
-library(cluster)
-library(slingshot)
+library(readr, warn.conflicts = FALSE)
+library(dplyr, warn.conflicts = FALSE)
+library(purrr, warn.conflicts = FALSE)
+library(dyndimred, warn.conflicts = FALSE)
+library(dynwrap, warn.conflicts = FALSE)
+library(dyncli, warn.conflicts = FALSE)
 
-#   ____________________________________________________________________________
-#   Load data                                                               ####
+library(princurve, warn.conflicts = FALSE)
+library(cluster, warn.conflicts = FALSE)
+suppressWarnings(library(slingshot, warn.conflicts = FALSE))
 
-data <- read_rds("/ti/input/data.rds")
-params <- jsonlite::read_json("/ti/input/params.json")
+#####################################
+###           LOAD DATA           ###
+#####################################
 
-#' @examples
-#' data <- dyntoy::generate_dataset(id = "test", num_cells = 300, num_features = 300, model = "linear") %>% c(., .$prior_information)
-#' params <- yaml::read_yaml("containers/slingshot/definition.yml")$parameters %>%
-#'   {.[names(.) != "forbidden"]} %>%
-#'   purrr::map(~ .$default)
+task <- dyncli::main()
 
-counts <- data$counts
-start_id <- data$start_id
-end_id <- data$end_id
+#' @example
+#' task <- dyncli::main(
+#'   args = "--dataset ~/example/test.loom --dimred landmark_mds --output ~/example/output.h5" %>% strsplit(" ") %>% first(),
+#'   definition_location = "~/Workspace/dynverse/methods/ti_angle/definition.yml"
+#' )
+
+params <- task$params
+counts <- task$counts
+start_id <- task$priors$start_id
+end_id <- task$priors$end_id
+
+#####################################
+###        INFER TRAJECTORY       ###
+#####################################
 
 #   ____________________________________________________________________________
 #   Preprocessing                                                           ####
 
-start_cell <-
-  if (!is.null(start_id)) {
-    sample(start_id, 1)
-  } else {
-    NULL
-  }
+start_cell <- if (!is.null(start_id)) { sample(start_id, 1) }  else { NULL }
 
 # normalization & preprocessing
 # from the vignette of slingshot
@@ -133,7 +137,7 @@ lineages <- slingLineages(sds)
 lineage_ctrl <- slingParams(sds)
 
 cluster_network <- lineages %>%
-  map_df(~ data_frame(from = .[-length(.)], to = .[-1])) %>%
+  map_df(~ tibble(from = .[-length(.)], to = .[-1])) %>%
   unique() %>%
   mutate(
     length = lineage_ctrl$dist[cbind(from, to)],
@@ -169,20 +173,20 @@ progressions <- map_df(seq_along(lineages), function(l) {
   pct[pct < 0] <- 0
   pct[pct > 1] <- 1
 
-  data_frame(cell_id = names(which(ind)), from = from.l, to = to.l, percentage = pct)
+  tibble(cell_id = names(which(ind)), from = from.l, to = to.l, percentage = pct)
 })
-
-
-# create output object
-output <- lst(
-  cell_ids = rownames(dimred),
-  milestone_network = cluster_network,
-  progressions,
-  dimred,
-  timings = checkpoints
-)
 
 #   ____________________________________________________________________________
 #   Save output                                                             ####
+output <-
+  wrap_data(
+    cell_ids = rownames(counts)
+  ) %>%
+  add_trajectory(
+    milestone_network = cluster_network,
+    progressions = progressions
+  ) %>%
+  add_dimred(dimred) %>%
+  add_timings(checkpoints)
 
-write_rds(output, "/ti/output/output.rds")
+dyncli::write_output(output, task$output)
