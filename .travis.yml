@@ -20,7 +20,6 @@ install:
 - install_cran devtools
 - install_github_withdeps dynverse/dynwrap
 - install_github_withdeps dynverse/dyntoy
-- install_github_withdeps dynverse/dyneval
 script:
 - source version
 - build_docker
