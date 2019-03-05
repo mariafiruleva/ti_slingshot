@@ -30,7 +30,7 @@ jobs:
   include:
   - stage: cache
     script:
-    - echo Don't build/test docker since this is a cache warmup
+    - echo Do not build/test docker since this is a cache warmup
     after_success:
-    - echo Don't push docker since this is a cache warmup
+    - echo Do not push docker since this is a cache warmup
   - stage: build
