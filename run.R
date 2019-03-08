@@ -20,7 +20,7 @@ task <- dyncli::main()
 #' @example
 #' task <- dyncli::main(
 #'   args = "--dataset ~/example/test.loom --dimred landmark_mds --output ~/example/output.h5" %>% strsplit(" ") %>% first(),
-#'   definition_location = "~/Workspace/dynverse/methods/ti_angle/definition.yml"
+#'   definition_location = "ti_angle/definition.yml"
 #' )
 
 params <- task$params
