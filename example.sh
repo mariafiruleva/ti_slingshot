@@ -6,12 +6,14 @@ data <- dyntoy::generate_dataset(
   id = "specific_example/slingshot",
   num_cells = 99,
   num_features = 101,
-  model = "tree"
+  model = "tree",
+  normalise = FALSE
 )
 
 # add method specific args (if needed)
 data$params <- list()
+data$seed <- 1
 
 # write example dataset to file
 file <- commandArgs(trailingOnly = TRUE)[[1]]
-dynutils::write_h5(data[c("counts", "expression", "params", "prior_information")], file)
+dynutils::write_h5(data, file)
