@@ -9,6 +9,7 @@ library(dynwrap, warn.conflicts = FALSE)
 
 requireNamespace("princurve", quietly = TRUE)
 requireNamespace("cluster", quietly = TRUE)
+requireNamespace("irlba", quietly = TRUE)
 
 suppressWarnings(library(slingshot, warn.conflicts = FALSE))
 
@@ -42,7 +43,7 @@ checkpoints <- list(method_afterpreproc = as.numeric(Sys.time()))
 
 #   ____________________________________________________________________________
 #   Dimensionality reduction                                                ####
-pca <- stats::prcomp(expression)
+pca <- irlba::prcomp_irlba(expression, n = 20)
 
 # this code is adapted from the expermclust() function in TSCAN
 # the only difference is in how PCA is performed
@@ -63,6 +64,7 @@ optpoint2 <- which.max(proj$dist_ind)-1
 # we will take more than 3 PCs only if both methods recommend it
 optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
 rd <- pca$x[, seq_len(optpoint)]
+rownames(rd) <- rownames(expression)
 
 #   ____________________________________________________________________________
 #   Clustering                                                              ####
@@ -178,3 +180,4 @@ output <-
   add_timings(checkpoints)
 
 dyncli::write_output(output, task$output)
+
