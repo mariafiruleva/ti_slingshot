@@ -17,13 +17,6 @@ suppressWarnings(library(slingshot, warn.conflicts = FALSE))
 ###           LOAD DATA           ###
 #####################################
 
-#' @example
-#' system("Rscript ti_slingshot/example.sh /tmp/test.h5")
-#' task <- dyncli::main(
-#'   args = "--dataset /tmp/test.h5 --output /tmp/output.h5" %>% strsplit(" ") %>% first(),
-#'   definition_location = "ti_slingshot/definition.yml"
-#' )
-
 parameters <- task$parameters
 expression <- task$expression
 start_id <- task$priors$start_id
