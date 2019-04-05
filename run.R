@@ -1,57 +1,49 @@
-library(jsonlite)
-library(readr)
-library(dplyr)
-library(purrr)
+#!/usr/local/bin/Rscript
 
-library(princurve)
-library(cluster)
-library(slingshot)
+requireNamespace("dyncli", quietly = TRUE)
+task <- dyncli::main()
 
-#   ____________________________________________________________________________
-#   Load data                                                               ####
+library(dplyr, warn.conflicts = FALSE)
+library(purrr, warn.conflicts = FALSE)
+library(dynwrap, warn.conflicts = FALSE)
 
-data <- read_rds("/ti/input/data.rds")
-params <- jsonlite::read_json("/ti/input/params.json")
+requireNamespace("princurve", quietly = TRUE)
+requireNamespace("cluster", quietly = TRUE)
+requireNamespace("irlba", quietly = TRUE)
 
-#' @examples
-#' data <- dyntoy::generate_dataset(id = "test", num_cells = 300, num_features = 300, model = "linear") %>% c(., .$prior_information)
-#' params <- yaml::read_yaml("containers/slingshot/definition.yml")$parameters %>%
-#'   {.[names(.) != "forbidden"]} %>%
-#'   purrr::map(~ .$default)
+suppressWarnings(library(slingshot, warn.conflicts = FALSE))
 
-counts <- data$counts
-start_id <- data$start_id
-end_id <- data$end_id
+#####################################
+###           LOAD DATA           ###
+#####################################
+
+#' @example
+#' system("Rscript ti_slingshot/example.sh /tmp/test.h5")
+#' task <- dyncli::main(
+#'   args = "--dataset /tmp/test.h5 --output /tmp/output.h5" %>% strsplit(" ") %>% first(),
+#'   definition_location = "ti_slingshot/definition.yml"
+#' )
+
+parameters <- task$parameters
+expression <- task$expression
+start_id <- task$priors$start_id
+end_id <- task$priors$end_id
+
+#####################################
+###        INFER TRAJECTORY       ###
+#####################################
 
 #   ____________________________________________________________________________
 #   Preprocessing                                                           ####
 
-start_cell <-
-  if (!is.null(start_id)) {
-    sample(start_id, 1)
-  } else {
-    NULL
-  }
-
-# normalization & preprocessing
-# from the vignette of slingshot
-FQnorm <- function(counts){
-  rk <- apply(counts, 2, rank, ties.method = "min")
-  counts.sort <- apply(counts, 2, sort)
-  refdist <- apply(counts.sort, 1, median)
-  norm <- apply(rk, 2, function(r) refdist[r])
-  rownames(norm) <- rownames(counts)
-  return(norm)
-}
-
-expr <- t(log1p(FQnorm(t(counts))))
+start_cell <- if (!is.null(start_id)) { sample(start_id, 1) } else { NULL }
 
 # TIMING: done with preproc
 checkpoints <- list(method_afterpreproc = as.numeric(Sys.time()))
 
 #   ____________________________________________________________________________
 #   Dimensionality reduction                                                ####
-pca <- prcomp(expr)
+pca <- irlba::prcomp_irlba(expression, n = 20)
 
 # this code is adapted from the expermclust() function in TSCAN
 # the only difference is in how PCA is performed
@@ -66,20 +58,21 @@ optpoint1 <- which.min(sapply(2:10, function(i) {
 # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
 x <- cbind(1:20, pca$sdev[1:20])
 line <- x[c(1, nrow(x)),]
-proj <- project_to_curve(x, line)
+proj <- princurve::project_to_curve(x, line)
 optpoint2 <- which.max(proj$dist_ind)-1
 
 # we will take more than 3 PCs only if both methods recommend it
 optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
 rd <- pca$x[, seq_len(optpoint)]
+rownames(rd) <- rownames(expression)
 
 #   ____________________________________________________________________________
 #   Clustering                                                              ####
 # max clusters equal to number of cells
-max_clusters <- min(nrow(counts)-1, 10)
+max_clusters <- min(nrow(expression)-1, 10)
 
 clusterings <- lapply(3:max_clusters, function(K){
-  pam(rd, K) # we generally prefer PAM as a more robust alternative to k-means
+  cluster::pam(rd, K) # we generally prefer PAM as a more robust alternative to k-means
 })
 
 # take one more than the optimal number of clusters based on average silhouette width
@@ -87,7 +80,6 @@ clusterings <- lapply(3:max_clusters, function(K){
 # silhouette width tends to pick too few clusters, otherwise)
 wh.cl <- which.max(sapply(clusterings, function(x){ x$silinfo$avg.width })) + 1
 labels <- clusterings[[min(c(wh.cl, 8))]]$clustering
-
 
 start.clus <-
   if(!is.null(start_cell)) {
@@ -109,14 +101,14 @@ sds <- slingshot(
   labels,
   start.clus = start.clus,
   end.clus = end.clus,
-  shrink = params$shrink,
-  reweight = params$reweight,
-  reassign = params$reassign,
-  thresh = params$thresh,
-  maxit = params$maxit,
-  stretch = params$stretch,
-  smoother = params$smoother,
-  shrink.method = params$shrink.method
+  shrink = parameters$shrink,
+  reweight = parameters$reweight,
+  reassign = parameters$reassign,
+  thresh = parameters$thresh,
+  maxit = parameters$maxit,
+  stretch = parameters$stretch,
+  smoother = parameters$smoother,
+  shrink.method = parameters$shrink.method
 )
 
 start_cell <- apply(slingPseudotime(sds), 1, min) %>% sort() %>% head(1) %>% names()
@@ -133,7 +125,7 @@ lineages <- slingLineages(sds)
 lineage_ctrl <- slingParams(sds)
 
 cluster_network <- lineages %>%
-  map_df(~ data_frame(from = .[-length(.)], to = .[-1])) %>%
+  map_df(~ tibble(from = .[-length(.)], to = .[-1])) %>%
   unique() %>%
   mutate(
     length = lineage_ctrl$dist[cbind(from, to)],
@@ -156,7 +148,7 @@ progressions <- map_df(seq_along(lineages), function(l) {
   pst.full <- slingPseudotime(sds, na = FALSE)[,l]
   pst <- pst.full[ind]
   means <- sapply(lin, function(clID){
-    weighted.mean(pst.full, cluster[,clID])
+    stats::weighted.mean(pst.full, cluster[,clID])
   })
   non_ends <- means[-c(1,length(means))]
   edgeID.l <- as.numeric(cut(pst, breaks = c(-Inf, non_ends, Inf)))
@@ -169,20 +161,23 @@ progressions <- map_df(seq_along(lineages), function(l) {
   pct[pct < 0] <- 0
   pct[pct > 1] <- 1
 
-  data_frame(cell_id = names(which(ind)), from = from.l, to = to.l, percentage = pct)
+  tibble(cell_id = names(which(ind)), from = from.l, to = to.l, percentage = pct)
 })
-
-
-# create output object
-output <- lst(
-  cell_ids = rownames(dimred),
-  milestone_network = cluster_network,
-  progressions,
-  dimred,
-  timings = checkpoints
-)
 
 #   ____________________________________________________________________________
 #   Save output                                                             ####
+output <-
+  wrap_data(
+    cell_ids = rownames(expression)
+  ) %>%
+  add_trajectory(
+    milestone_network = cluster_network,
+    progressions = progressions
+  ) %>%
+  add_dimred(
+    dimred = dimred
+  ) %>%
+  add_timings(checkpoints)
 
-write_rds(output, "/ti/output/output.rds")
+dyncli::write_output(output, task$output)
+
