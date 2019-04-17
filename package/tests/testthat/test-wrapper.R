@@ -1,5 +1,5 @@
 test_that("ti_slingshot works", {
-  dataset <- dynutils::read_h5(system.file("example.h5", package = "tislingshot"))
+  dataset <- source(system.file("example.sh", package = "tislingshot"))$value
 
   model <- dynwrap::infer_trajectory(dataset, tislingshot::ti_slingshot(), verbose = T)
 
