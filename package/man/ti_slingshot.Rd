@@ -29,7 +29,12 @@ ti_slingshot(shrink = 1L, reweight = TRUE, reassign = TRUE,
 Infer a trajectory using slingshot
 }
 \examples{
-dataset <- dynwrap::example_dataset
+dataset <- data <- dyntoy::generate_dataset(
+  num_cells = 99,
+  num_features = 101,
+  model = "tree",
+  normalise = FALSE
+)
 model <- dynwrap::infer_trajectory(dataset, ti_slingshot())
 
 }

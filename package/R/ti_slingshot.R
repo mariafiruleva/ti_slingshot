@@ -1,6 +1,18 @@
+#' Run slingshot
+#'
+#' @param expression Expression matrix
+#' @param parameters Parameters
+#' @param priors Priors
+#' @param verbose Verbosity level
+#' @param seed Random seed
+#'
 #' @import dplyr
 #' @import purrr
 #' @import slingshot
+#' @import dynwrap
+#' @importFrom cluster pam
+#' @importFrom irlba prcomp_irlba
+#' @importFrom princurve project_to_curve
 #'
 #' @export
 run_fun <- function(expression, parameters, priors, verbose, seed) {
@@ -166,15 +178,17 @@ definition <- dynwrap::convert_definition(yaml::read_yaml(system.file("definitio
 #' @eval dynwrap::generate_parameter_documentation(definition)
 #'
 #' @examples
-#' dataset <- dynwrap::example_dataset
+#' dataset <- data <- dyntoy::generate_dataset(
+#'   num_cells = 99,
+#'   num_features = 101,
+#'   model = "tree",
+#'   normalise = FALSE
+#' )
 #' model <- dynwrap::infer_trajectory(dataset, ti_slingshot())
 #'
 #' @export
 ti_slingshot <- dynwrap::create_ti_method_r(
   definition = definition,
   run_fun = run_fun,
-  package_required = c("slingshot", "princurve", "purrr", "dynwrap"),
-  package_loaded = "dplyr",
-  remotes_package = "dynslingshot",
   return_function = TRUE
 )
