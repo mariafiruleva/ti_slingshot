@@ -47,6 +47,14 @@ wrapper:
     - end_id
 
 parameters:
+  - id: ndim
+    type: integer
+    default: 20
+    distribution:
+      type: uniform
+      upper: 100
+      lower: 2
+    description: The number of dimensions in the new space.
   - id: shrink
     type: numeric
     default: 1

@@ -33,28 +33,37 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
 
   #   ____________________________________________________________________________
   #   Dimensionality reduction                                                ####
-  pca <- irlba::prcomp_irlba(expression, n = 20)
+  ndim <- parameters$ndim
+  if (ncol(expression) <= ndim) {
+    message(paste0(
+       "ndim is ", ndim, " but number of dimensions is ", ncol(expression),
+       ". Won't do dimensionality reduction."
+     ))
+    rd <- expression
+  } else {
+    pca <- irlba::prcomp_irlba(expression, n = ndim)
 
-  # this code is adapted from the expermclust() function in TSCAN
-  # the only difference is in how PCA is performed
-  # (they specify scale. = TRUE and we leave it as FALSE)
-  x <- 1:20
-  optpoint1 <- which.min(sapply(2:10, function(i) {
-    x2 <- pmax(0, x - i)
-    sum(lm(pca$sdev[1:20] ~ x + x2)$residuals^2 * rep(1:2,each = 10))
-  }))
+    # this code is adapted from the expermclust() function in TSCAN
+    # the only difference is in how PCA is performed
+    # (they specify scale. = TRUE and we leave it as FALSE)
+    x <- 1:ndim
+    optpoint1 <- which.min(sapply(2:10, function(i) {
+      x2 <- pmax(0, x - i)
+      sum(lm(pca$sdev[1:ndim] ~ x + x2)$residuals^2 * rep(1:2,each = 10))
+    }))
 
-  # this is a simple method for finding the "elbow" of a curve, from
-  # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
-  x <- cbind(1:20, pca$sdev[1:20])
-  line <- x[c(1, nrow(x)),]
-  proj <- princurve::project_to_curve(x, line)
-  optpoint2 <- which.max(proj$dist_ind)-1
+    # this is a simple method for finding the "elbow" of a curve, from
+    # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
+    x <- cbind(1:ndim, pca$sdev[1:ndim])
+    line <- x[c(1, nrow(x)),]
+    proj <- princurve::project_to_curve(x, line)
+    optpoint2 <- which.max(proj$dist_ind)-1
 
-  # we will take more than 3 PCs only if both methods recommend it
-  optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
-  rd <- pca$x[, seq_len(optpoint)]
-  rownames(rd) <- rownames(expression)
+    # we will take more than 3 PCs only if both methods recommend it
+    optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
+    rd <- pca$x[, seq_len(optpoint)]
+    rownames(rd) <- rownames(expression)
+  }
 
   #   ____________________________________________________________________________
   #   Clustering                                                              ####
