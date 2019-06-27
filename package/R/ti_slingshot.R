@@ -39,7 +39,7 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
        "ndim is ", ndim, " but number of dimensions is ", ncol(expression),
        ". Won't do dimensionality reduction."
      ))
-    rd <- expression
+    rd <- as.matrix(expression)
   } else {
     pca <- irlba::prcomp_irlba(expression, n = ndim)
 
