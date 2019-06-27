@@ -47,6 +47,12 @@ wrapper:
     - end_id
 
 parameters:
+  - id: cluster_method
+    type: character
+    default: pam
+    values:
+      - pam
+      - clara
   - id: ndim
     type: integer
     default: 20

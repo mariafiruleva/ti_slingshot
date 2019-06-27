@@ -43,24 +43,30 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
   } else {
     pca <- irlba::prcomp_irlba(expression, n = ndim)
 
-    # this code is adapted from the expermclust() function in TSCAN
-    # the only difference is in how PCA is performed
-    # (they specify scale. = TRUE and we leave it as FALSE)
-    x <- 1:ndim
-    optpoint1 <- which.min(sapply(2:10, function(i) {
-      x2 <- pmax(0, x - i)
-      sum(lm(pca$sdev[1:ndim] ~ x + x2)$residuals^2 * rep(1:2,each = 10))
-    }))
+    # select optimal number of dimensions if ndim is large enough
+    if (ndim > 3) {
+      # this code is adapted from the expermclust() function in TSCAN
+      # the only difference is in how PCA is performed
+      # (they specify scale. = TRUE and we leave it as FALSE)
+      x <- 1:ndim
+      optpoint1 <- which.min(sapply(2:10, function(i) {
+        x2 <- pmax(0, x - i)
+        sum(lm(pca$sdev[1:ndim] ~ x + x2)$residuals^2 * rep(1:2,each = 10))
+      }))
 
-    # this is a simple method for finding the "elbow" of a curve, from
-    # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
-    x <- cbind(1:ndim, pca$sdev[1:ndim])
-    line <- x[c(1, nrow(x)),]
-    proj <- princurve::project_to_curve(x, line)
-    optpoint2 <- which.max(proj$dist_ind)-1
+      # this is a simple method for finding the "elbow" of a curve, from
+      # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
+      x <- cbind(1:ndim, pca$sdev[1:ndim])
+      line <- x[c(1, nrow(x)),]
+      proj <- princurve::project_to_curve(x, line)
+      optpoint2 <- which.max(proj$dist_ind)-1
 
-    # we will take more than 3 PCs only if both methods recommend it
-    optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
+      # we will take more than 3 PCs only if both methods recommend it
+      optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
+    } else {
+      optpoint <- ndim
+    }
+
     rd <- pca$x[, seq_len(optpoint)]
     rownames(rd) <- rownames(expression)
   }
@@ -70,9 +76,19 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
   # max clusters equal to number of cells
   max_clusters <- min(nrow(expression)-1, 10)
 
-  clusterings <- lapply(3:max_clusters, function(K){
-    cluster::pam(rd, K) # we generally prefer PAM as a more robust alternative to k-means
-  })
+  # select clustering
+  if (parameters$cluster_method == "pam") {
+    if (nrow(rd) > 10000) {
+      warning("PAM (the default clustering method) does not scale well to a lot of cells. You might encounter memory issues. This can be resolved by using the CLARA clustering method, i.e. cluster_method = 'clara'.")
+    }
+    clusterings <- lapply(3:max_clusters, function(K){
+      cluster::pam(rd, K) # we generally prefer PAM as a more robust alternative to k-means
+    })
+  } else if (parameters$cluster_method == "clara") {
+    clusterings <- lapply(3:max_clusters, function(K){
+      cluster::clara(rd, K) # we generally prefer PAM as a more robust alternative to k-means
+    })
+  }
 
   # take one more than the optimal number of clusters based on average silhouette width
   # (max of 10; the extra cluster improves flexibility when learning the topology,
@@ -95,7 +111,7 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
 
   #   ____________________________________________________________________________
   #   Infer trajectory                                                        ####
-  sds <- slingshot(
+  sds <- slingshot::slingshot(
     rd,
     labels,
     start.clus = start.clus,
@@ -110,7 +126,7 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
     shrink.method = parameters$shrink.method
   )
 
-  start_cell <- apply(slingPseudotime(sds), 1, min) %>% sort() %>% head(1) %>% names()
+  start_cell <- apply(slingshot::slingPseudotime(sds), 1, min) %>% sort() %>% head(1) %>% names()
   start.clus <- labels[[start_cell]]
 
   # TIMING: done with method
