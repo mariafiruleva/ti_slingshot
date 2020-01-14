@@ -27,8 +27,9 @@ container:
   url: https://github.com/dynverse/ti_slingshot
 
 package:
-  remote: tislingshot=dynverse/ti_slingshot/package
-  function: ti_slingshot
+  remote: dynverse/ti_slingshot/package
+  name: tislingshot
+  function_name: ti_slingshot
 
 wrapper:
   type: trajectory
