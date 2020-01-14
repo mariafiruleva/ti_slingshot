@@ -21,5 +21,4 @@ Suggests:
   testthat,
   dyntoy
 Remotes:
-  dynverse/dynwrap,
-  bioc::release/slingshot
+  dynverse/dynwrap
