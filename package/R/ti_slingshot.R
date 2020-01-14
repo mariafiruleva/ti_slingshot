@@ -151,7 +151,7 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
   dimred <- reducedDim(sds)
 
   # collect clusters
-  cluster <- clusterLabels(sds)
+  cluster <- slingClusterLabels(sds)
 
   # collect progressions
   adj <- slingAdjacency(sds)

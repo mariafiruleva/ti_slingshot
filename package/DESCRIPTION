@@ -15,7 +15,7 @@ Imports:
   irlba,
   princurve,
   dynwrap,
-  slingshot,
+  slingshot>=1.4.0,
   dplyr,
   purrr
 Suggests: 
