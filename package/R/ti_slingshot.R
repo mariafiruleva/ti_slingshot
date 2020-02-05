@@ -18,6 +18,8 @@
 run_fun <- function(expression, parameters, priors, verbose, seed) {
   start_id <- priors$start_id
   end_id <- priors$end_id
+  dimred <- priors$dimred
+  groups_id <- priors$groups_id
 
   #####################################
   ###        INFER TRAJECTORY       ###
@@ -33,68 +35,81 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
 
   #   ____________________________________________________________________________
   #   Dimensionality reduction                                                ####
-  ndim <- parameters$ndim
-  if (ncol(expression) <= ndim) {
-    message(paste0(
-       "ndim is ", ndim, " but number of dimensions is ", ncol(expression),
-       ". Won't do dimensionality reduction."
-     ))
-    rd <- as.matrix(expression)
-  } else {
-    pca <- irlba::prcomp_irlba(expression, n = ndim)
-
-    # select optimal number of dimensions if ndim is large enough
-    if (ndim > 3) {
-      # this code is adapted from the expermclust() function in TSCAN
-      # the only difference is in how PCA is performed
-      # (they specify scale. = TRUE and we leave it as FALSE)
-      x <- 1:ndim
-      optpoint1 <- which.min(sapply(2:10, function(i) {
-        x2 <- pmax(0, x - i)
-        sum(lm(pca$sdev[1:ndim] ~ x + x2)$residuals^2 * rep(1:2,each = 10))
-      }))
-
-      # this is a simple method for finding the "elbow" of a curve, from
-      # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
-      x <- cbind(1:ndim, pca$sdev[1:ndim])
-      line <- x[c(1, nrow(x)),]
-      proj <- princurve::project_to_curve(x, line)
-      optpoint2 <- which.max(proj$dist_ind)-1
-
-      # we will take more than 3 PCs only if both methods recommend it
-      optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
+  # only do dimred if it is not yet given by prior information
+  if (is.null(dimred)) {
+    ndim <- parameters$ndim
+    if (ncol(expression) <= ndim) {
+      message(paste0(
+        "ndim is ", ndim, " but number of dimensions is ", ncol(expression),
+        ". Won't do dimensionality reduction."
+      ))
+      rd <- as.matrix(expression)
     } else {
-      optpoint <- ndim
-    }
+      pca <- irlba::prcomp_irlba(expression, n = ndim)
 
-    rd <- pca$x[, seq_len(optpoint)]
-    rownames(rd) <- rownames(expression)
+      # select optimal number of dimensions if ndim is large enough
+      if (ndim > 3) {
+        # this code is adapted from the expermclust() function in TSCAN
+        # the only difference is in how PCA is performed
+        # (they specify scale. = TRUE and we leave it as FALSE)
+        x <- 1:ndim
+        optpoint1 <- which.min(sapply(2:10, function(i) {
+          x2 <- pmax(0, x - i)
+          sum(lm(pca$sdev[1:ndim] ~ x + x2)$residuals^2 * rep(1:2,each = 10))
+        }))
+
+        # this is a simple method for finding the "elbow" of a curve, from
+        # https://stackoverflow.com/questions/2018178/finding-the-best-trade-off-point-on-a-curve
+        x <- cbind(1:ndim, pca$sdev[1:ndim])
+        line <- x[c(1, nrow(x)),]
+        proj <- princurve::project_to_curve(x, line)
+        optpoint2 <- which.max(proj$dist_ind)-1
+
+        # we will take more than 3 PCs only if both methods recommend it
+        optpoint <- max(c(min(c(optpoint1, optpoint2)), 3))
+      } else {
+        optpoint <- ndim
+      }
+
+      rd <- pca$x[, seq_len(optpoint)]
+      rownames(rd) <- rownames(expression)
+    }
+  } else {
+    message("Using given dimred")
+    rd <- dimred
   }
+
 
   #   ____________________________________________________________________________
   #   Clustering                                                              ####
-  # max clusters equal to number of cells
-  max_clusters <- min(nrow(expression)-1, 10)
+  # only do clustering if it is not yet given by prior information
+  if (is.null(groups_id)) {
+    # max clusters equal to number of cells
+    max_clusters <- min(nrow(expression)-1, 10)
 
-  # select clustering
-  if (parameters$cluster_method == "pam") {
-    if (nrow(rd) > 10000) {
-      warning("PAM (the default clustering method) does not scale well to a lot of cells. You might encounter memory issues. This can be resolved by using the CLARA clustering method, i.e. cluster_method = 'clara'.")
+    # select clustering
+    if (parameters$cluster_method == "pam") {
+      if (nrow(rd) > 10000) {
+        warning("PAM (the default clustering method) does not scale well to a lot of cells. You might encounter memory issues. This can be resolved by using the CLARA clustering method, i.e. cluster_method = 'clara'.")
+      }
+      clusterings <- lapply(3:max_clusters, function(K){
+        cluster::pam(rd, K) # we generally prefer PAM as a more robust alternative to k-means
+      })
+    } else if (parameters$cluster_method == "clara") {
+      clusterings <- lapply(3:max_clusters, function(K){
+        cluster::clara(rd, K) # we generally prefer PAM as a more robust alternative to k-means
+      })
     }
-    clusterings <- lapply(3:max_clusters, function(K){
-      cluster::pam(rd, K) # we generally prefer PAM as a more robust alternative to k-means
-    })
-  } else if (parameters$cluster_method == "clara") {
-    clusterings <- lapply(3:max_clusters, function(K){
-      cluster::clara(rd, K) # we generally prefer PAM as a more robust alternative to k-means
-    })
-  }
 
-  # take one more than the optimal number of clusters based on average silhouette width
-  # (max of 10; the extra cluster improves flexibility when learning the topology,
-  # silhouette width tends to pick too few clusters, otherwise)
-  wh.cl <- which.max(sapply(clusterings, function(x){ x$silinfo$avg.width })) + 1
-  labels <- clusterings[[min(c(wh.cl, 8))]]$clustering
+    # take one more than the optimal number of clusters based on average silhouette width
+    # (max of 10; the extra cluster improves flexibility when learning the topology,
+    # silhouette width tends to pick too few clusters, otherwise)
+    wh.cl <- which.max(sapply(clusterings, function(x){ x$silinfo$avg.width })) + 1
+    labels <- clusterings[[min(c(wh.cl, 8))]]$clustering
+  } else {
+    message("Using given groups/clustering")
+    labels <- groups_id %>% deframe()
+  }
 
   start.clus <-
     if(!is.null(start_cell)) {
