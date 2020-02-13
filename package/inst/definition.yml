@@ -3,7 +3,7 @@ method:
   name: Slingshot
   source: tool
   platform: R
-  license: Artistic-2.0
+  license: "Artistic-2.0"
   url: https://github.com/kstreet13/slingshot
   authors:
   - given: Kelly
