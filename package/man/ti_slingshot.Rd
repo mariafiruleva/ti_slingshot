@@ -4,11 +4,24 @@
 \alias{ti_slingshot}
 \title{Infer a trajectory using slingshot}
 \usage{
-ti_slingshot(shrink = 1L, reweight = TRUE, reassign = TRUE,
-  thresh = 0.001, maxit = 10L, stretch = 2L,
-  smoother = "smooth.spline", shrink.method = "cosine")
+ti_slingshot(
+  cluster_method = "pam",
+  ndim = 20L,
+  shrink = 1L,
+  reweight = TRUE,
+  reassign = TRUE,
+  thresh = 0.001,
+  maxit = 10L,
+  stretch = 2L,
+  smoother = "smooth.spline",
+  shrink.method = "cosine"
+)
 }
 \arguments{
+\item{cluster_method}{. Domain: {pam, clara}. Default: pam. Format: character.}
+
+\item{ndim}{The number of dimensions in the new space. Domain: U(2, 100). Default: 20. Format: integer.}
+
 \item{shrink}{Logical or numeric between 0 and 1, determines whether and how much to shrink branching lineages toward their average prior to the split. Domain: e^U(-Inf, 0.00). Default: 1. Format: numeric.}
 
 \item{reweight}{Logical, whether to allow cells shared between lineages to be reweighted during curve-fitting. If `TRUE`, cells shared between  lineages will be weighted by: distance to nearest curve / distance to curve. Default: TRUE. Format: logical.}

@@ -13,6 +13,9 @@
 #' @importFrom cluster pam
 #' @importFrom irlba prcomp_irlba
 #' @importFrom princurve project_to_curve
+#' @importFrom stats lm
+#' @importFrom utils head
+#' @importFrom tibble deframe
 #'
 #' @export
 run_fun <- function(expression, parameters, priors, verbose, seed) {
@@ -150,10 +153,12 @@ run_fun <- function(expression, parameters, priors, verbose, seed) {
   #   ____________________________________________________________________________
   #   Create output                                                           ####
 
+  # satisfy r cmd check
+  from <- to <- NULL
+
   # collect milestone network
   lineages <- slingLineages(sds)
   lineage_ctrl <- slingParams(sds)
-
   cluster_network <- lineages %>%
     map_df(~ tibble(from = .[-length(.)], to = .[-1])) %>%
     unique() %>%
