@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: "0 0 * * 1"
 
-name: make
+name: build-docker
 
 jobs:
   build_containers:
