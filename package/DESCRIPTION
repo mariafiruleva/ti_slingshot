@@ -1,6 +1,6 @@
 Package: tislingshot
 Title: A Dynverse Wrapper of Slingshot
-Version: 2.0.0
+Version: 2.0.1
 Authors@R: 
     c(person(given = "Robrecht",
              family = "Cannoodt",
@@ -12,7 +12,7 @@ Authors@R:
              role = "aut",
              email = "wouter.saelens@ugent.be",
              comment = c(ORCID = "0000-0002-7114-6248")))
-Description: A dynverse wrapper of Slingshot using dynwrap &
+Description: A dynverse wrapper of Slingshot using dynwrap,
     made for dynmethods.
 License: MIT + file LICENSE
 Imports:
