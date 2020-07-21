@@ -1,13 +1,13 @@
 context("Testing ti_slingshot")
 
-dataset <- source(system.file("example.sh", package = "tislingshot"))$value
-
 test_that("ti_slingshot produces a TI method", {
   method <- tislingshot::ti_slingshot()
 
   expect_true(dynwrap::is_ti_method(method))
 })
 
+
+dataset <- source(system.file("example.sh", package = "tislingshot"))$value
 method <- tislingshot::ti_slingshot()
 
 test_that("ti_slingshot is able to produce a trajectory", {
