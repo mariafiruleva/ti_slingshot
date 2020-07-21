@@ -1,4 +1,4 @@
-#!/usr/local/bin/Rscript
+#!/usr/bin/env Rscript
 
 requireNamespace("dyncli", quietly = TRUE)
 task <- dyncli::main()
