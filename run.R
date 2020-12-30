@@ -13,4 +13,8 @@ output <- tislingshot::run_fun(
   verbose = task$verbose
 )
 
+output$sling_out <- list()
+output$sling_out$pseudotime <- slingshot::slingPseudotime(sds) %>% as.data.frame()
+output$sling_out$cell_weights <- slingshot::slingCurveWeights(sds) %>% as.data.frame()
+
 dyncli::write_output(output, task$output)

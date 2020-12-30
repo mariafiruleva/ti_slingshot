@@ -23,8 +23,8 @@ manuscript:
   publication_date: '2018-06-19'
 
 container:
-  docker: dynverse/ti_slingshot
-  url: https://github.com/dynverse/ti_slingshot
+  docker: mfiruleva/ti_slingshot
+  url: https://github.com/mfiruleva/ti_slingshot
 
 package:
   remote: dynverse/ti_slingshot/package
